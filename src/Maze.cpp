@@ -17,6 +17,8 @@
 *************************************************************************/
 
 #include "Maze.h"
+#include "GL/GL.h"
+#include "Point.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -626,6 +628,9 @@ Draw_Map(int min_x, int min_y, int max_x, int max_y)
 // * Draws the first-person view of the maze. It is passed the focal distance.
 //   THIS IS THE FUINCTION YOU SHOULD MODIFY.
 //======================================================================
+#include <vector>
+#include <algorithm>
+using vec_edgep_t = std::vector<Edge*>;
 void Maze::
 Draw_View(const float focal_dist)
 //======================================================================
@@ -636,8 +641,86 @@ Draw_View(const float focal_dist)
 	// TODO
 	// The rest is up to you!
 	//###################################################################
-}
 
+    vec_edgep_t vec_edge;
+
+    for(int i = 0 ; i < num_edges; i++){
+        vec_edge.push_back(edges[i]);
+    }
+
+    std::sort(vec_edge.begin(), vec_edge.end(),
+              [this](Edge* lhs, Edge* rhs)
+    {
+        //middle point of edge
+        double lhs_midd_X = (lhs->endpoints[Edge::START]->posn[Vertex::X] + lhs->endpoints[Edge::END]->posn[Vertex::X]) / 2.0;
+        double lhs_midd_Y = (lhs->endpoints[Edge::START]->posn[Vertex::Y] + lhs->endpoints[Edge::END]->posn[Vertex::Y]) / 2.0;
+        double rhs_midd_X = (rhs->endpoints[Edge::START]->posn[Vertex::X] + rhs->endpoints[Edge::END]->posn[Vertex::X]) / 2.0;
+        double rhs_midd_Y = (rhs->endpoints[Edge::START]->posn[Vertex::Y] + rhs->endpoints[Edge::END]->posn[Vertex::Y]) / 2.0;
+
+        //offset point to viewer space
+        lhs_midd_X -= viewer_posn[Vertex::X];
+        lhs_midd_Y -= viewer_posn[Vertex::Y];
+        rhs_midd_X -= viewer_posn[Vertex::X];
+        rhs_midd_Y -= viewer_posn[Vertex::Y];
+
+        //judge middle point to view's length
+        double lhs_to_viewer = lhs_midd_X * lhs_midd_X + lhs_midd_Y * lhs_midd_Y;
+        double rhs_to_viewer = rhs_midd_X * rhs_midd_X + rhs_midd_Y * rhs_midd_Y;
+        return lhs_to_viewer > rhs_to_viewer;
+    });
+
+    for(auto& e : vec_edge){
+
+        if(!e->opaque) { continue; }
+
+        double  start_x = e->endpoints[Edge::START]->posn[Vertex::X],
+                start_y = e->endpoints[Edge::START]->posn[Vertex::Y],
+                end_x = e->endpoints[Edge::END]->posn[Vertex::X],
+                end_y = e->endpoints[Edge::END]->posn[Vertex::Y];
+
+        // offset point to viewer space
+        start_x -= viewer_posn[Vertex::X];
+        start_y -= viewer_posn[Vertex::Y];
+        end_x -= viewer_posn[Vertex::X];
+        end_y -= viewer_posn[Vertex::Y];
+
+        // rotate to viewer's space
+        double  viewer_sin = sin(To_Radians(-viewer_dir)),
+                viewer_cos = cos(To_Radians(-viewer_dir));
+
+        double tmp = 0.0;
+        tmp = start_x;
+        start_x = viewer_cos * tmp - viewer_sin * start_y;
+        start_y = viewer_sin * tmp + viewer_cos * start_y;
+        tmp = end_x;
+        end_x = viewer_cos * tmp - viewer_sin * end_y;
+        end_y = viewer_sin * tmp + viewer_cos * end_y;
+
+        // if edge is behind viewer then dont draw
+        if(start_x <= 0 && end_x <= 0) { continue; }
+
+        // cut edge behind viewer
+        if(start_x <= 0){
+            double rate = (start_x - 0.0001f) / (start_x - end_x);
+            start_x += rate * (end_x - start_x);
+            start_y += rate * (end_y - start_y);
+        }
+        if(end_x <= 0){
+            double rate = (end_x - 0.0001f) / (end_x - start_x);
+            end_x += rate * (start_x - end_x);
+            end_y += rate * (start_y - end_y);
+        }
+
+        glBegin(GL_QUADS);
+        glColor3d(e->color[0], e->color[1], e->color[2]);
+        glVertex2f(-start_y * focal_dist / start_x, -focal_dist / start_x);
+        glVertex2f(-start_y * focal_dist / start_x, focal_dist / start_x);
+        glVertex2f(-end_y * focal_dist / end_x, focal_dist / end_x);
+        glVertex2f(-end_y * focal_dist / end_x, -focal_dist / end_x);
+        glEnd();
+
+    }
+}
 
 //**********************************************************************
 //

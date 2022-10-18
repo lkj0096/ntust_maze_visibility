@@ -23,7 +23,7 @@
 class Point {
 	public:
 		// Constructor to set up x, y, z
-		Point(const float x, const float y, const float z) {
+		Point(const double x, const double y, const double z) {
 			p[0] = x; p[1] = y; p[2] = z;
 		}
 		// Copy contructor
@@ -39,7 +39,7 @@ class Point {
 		}
 
 		// Index operator
-		float&  operator[](const int i) { return p[i]; }
+		double&  operator[](const int i) { return p[i]; }
 
 		// Equal operator
 		bool    operator==(const Point &other) {
@@ -71,8 +71,11 @@ class Point {
 
 			return x * x + y * y + z * z >= 1.0e-15;
 		}
+        double x() { return p[0]; }
+        double y() { return p[1]; }
+        double z() { return p[2]; }
   private:
-    float   p[3];
+    double   p[3];
 };
 
 #endif
